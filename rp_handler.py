@@ -1,20 +1,57 @@
 import runpod
-import time  
+import subprocess
+import shlex
 
 def handler(event):
-    print(f"Worker Start")
-    input = event['input']
+    print("Worker Start")
+    input_data = event.get('input', {})
     
-    prompt = input.get('prompt')  
-    seconds = input.get('seconds', 0)  
+    # Pega o comando para executar
+    command_string = input_data.get('command')  
 
-    print(f"Received prompt: {prompt}")
-    print(f"Sleeping for {seconds} seconds...")
+    if not command_string:
+        return {
+            "error": "Nenhum 'command' foi fornecido no 'input'."
+        }
+
+    print(f"Executando comando: {command_string}")
+
+    try:
+        # Executa o comando usando shell=True para interpretar a string como um comando de shell
+        # (permite pipes '|', redirecionamentos '>', etc.)
+        # ATENÇÃO: Isso pode ser um risco de segurança se a entrada não for confiável.
+        result = subprocess.run(
+            command_string, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            timeout=900
+        )
+        
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr}")
+
+        # Retorna a saída padrão, erro padrão e o código de retorno
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "return_code": result.returncode
+        }
     
-    # Replace the sleep code with your Python function to generate images, text, or run any machine learning workload
-    time.sleep(seconds)  
-    
-    return prompt 
+    except subprocess.TimeoutExpired:
+        print("Comando expirou")
+        return {
+            "error": "Comando expirou (timeout de 900s).",
+            "stdout": "",
+            "stderr": "TimeoutExpired"
+        }
+    except Exception as e:
+        print(f"Ocorreu um erro inesperado: {str(e)}")
+        return {
+            "error": f"Ocorreu um erro inesperado: {str(e)}",
+            "stdout": "",
+            "stderr": str(e)
+        }
 
 if __name__ == '__main__':
     runpod.serverless.start({'handler': handler })

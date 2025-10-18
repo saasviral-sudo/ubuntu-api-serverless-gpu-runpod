@@ -1,6 +1,5 @@
 {
     "input": {
-        "prompt": "John Doe",
-        "seconds": 15
+        "command": "echo '{\"message\": \"Olá do worker!\"}' | jq .message && ffmpeg -version"
     }
 }
